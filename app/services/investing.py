@@ -10,13 +10,13 @@ async def investing(session: AsyncSession):
     """Инвестирование имеющихся пожертвований в незавершенные проекты."""
     projects = await session.execute(
         select(CharityProject).where(
-            CharityProject.fully_invested == False
+            CharityProject.fully_invested == 0
         )
     )
     projects = projects.scalars().first()
     donations = await session.execute(
         select(Donation).where(
-            Donation.fully_invested == False
+            Donation.fully_invested == 0
         )
     )
     donations = donations.scalars().first()
