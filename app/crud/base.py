@@ -1,8 +1,10 @@
+from typing import Optional
+
 from fastapi.encoders import jsonable_encoder
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.validators import investing
+from app.models import User
 
 
 class CRUDBase:
@@ -15,6 +17,7 @@ class CRUDBase:
             obj_id: int,
             session: AsyncSession
     ):
+        """Получение объекта по id."""
         db_obj = await session.execute(
             select(self.model).where(
                 self.model.id == obj_id
@@ -26,17 +29,21 @@ class CRUDBase:
             self,
             session: AsyncSession
     ):
+        """Получение списка объектов."""
         db_objs = await session.execute(select(self.model))
         return db_objs.scalars().all()
 
     async def create(
             self,
             obj_in,
-            session: AsyncSession
+            session: AsyncSession,
+            user: Optional[User] = None
     ):
+        """Создание объекта."""
         obj_in_data = obj_in.dict()
+        if user is not None:
+            obj_in_data['user_id'] = user.id
         db_obj = self.model(**obj_in_data)
-        await investing(session)
         session.add(db_obj)
         await session.commit()
         await session.refresh(db_obj)
@@ -48,6 +55,7 @@ class CRUDBase:
             obj_in,
             session: AsyncSession
     ):
+        """Обновление объекта."""
         obj_data = jsonable_encoder(db_obj)
         update_data = obj_in.dict(exclude_unset=True)
         for field in obj_data:
@@ -63,21 +71,7 @@ class CRUDBase:
             db_obj,
             session: AsyncSession
     ):
+        """Удаление объекта."""
         await session.delete(db_obj)
         await session.commit()
         return db_obj
-
-    async def get_by_attribute(
-            self,
-            attr_name: str,
-            attr_value: str,
-            session: AsyncSession,
-    ):
-        attr = getattr(self.model, attr_name)
-        db_obj = await session.execute(
-            select(self.model).where(
-                attr == attr_value
-            )
-        )
-        return db_obj.scalars().first()
-

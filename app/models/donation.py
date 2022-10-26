@@ -5,7 +5,6 @@ from app.models.base import BaseModel
 
 
 class Donation(Base, BaseModel):
+    """Модель для пожертвований"""
     comment = Column(Text)
-
-    def __repr__(self):
-        return str(self.id)
+    user_id = Column(Integer, ForeignKey('user.id'))

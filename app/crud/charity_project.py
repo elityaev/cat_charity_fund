@@ -6,17 +6,19 @@ from app.models.charity_project import CharityProject
 
 
 class CRUDCharityProject(CRUDBase):
-    pass
+
+    async def get_project_by_name(
+            self,
+            project_name: str,
+            session: AsyncSession,
+    ):
+        """Получение проекта по имени."""
+        project = await session.execute(
+            select(CharityProject).where(
+                CharityProject.name == project_name
+            )
+        )
+        return project.scalars().first()
 
 
 project_crud = CRUDCharityProject(CharityProject)
-
-
-async def investing(session: AsyncSession):
-    projects = await session.execute(
-        select(CharityProject).where(
-            CharityProject.fully_invested == False
-        )
-    )
-    project_list = projects.scalars().all()
-    print(project_list)

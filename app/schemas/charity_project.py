@@ -1,36 +1,33 @@
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel, Field, validator
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from app.models.charity_project import CharityProject
+from pydantic import BaseModel, Field, Extra
 
 
 class CharityProjectBase(BaseModel):
+    """Базовая схема проекта."""
     name: str = Field(..., min_length=1, max_length=100)
     description: str = Field(..., min_length=1)
     full_amount: int = Field(..., gt=0)
 
 
-
 class CharityProjectCreate(CharityProjectBase):
+    """Схема создания объекта."""
     pass
 
 
 class CharityProjectUpdate(CharityProjectBase):
+    """Схема обновления проекта."""
     name: Optional[str] = Field(None, min_length=1, max_length=100)
     description: Optional[str] = Field(None, min_length=1)
     full_amount: Optional[int] = Field(None, gt=0)
 
-    @validator('full_amount')
-    def name_cannot_be_null(cls, full_amount, values):
-        if 'full_amount' in values and full_amount <= values['invested_amount']:
-            raise ValueError('Новая сумма не должна быть меньше уже собранной!')
-        return full_amount
+    class Config:
+        extra = Extra.forbid
+
 
 class CharityProjectDB(CharityProjectBase):
+    """Схема проекта, полученного из БД."""
     id: int
     invested_amount: Optional[int]
     fully_invested: Optional[bool]
@@ -39,27 +36,3 @@ class CharityProjectDB(CharityProjectBase):
 
     class Config:
         orm_mode = True
-
-
-async def get_project_by_id(
-        project_id: int,
-        session: AsyncSession,
-):
-    project = await session.execute(
-        select(CharityProject).where(
-            CharityProject.id == project_id
-        )
-    )
-    return project.scalars().first()
-
-
-async def get_project_by_name(
-        project_name: str,
-        session: AsyncSession,
-):
-    project = await session.execute(
-        select(CharityProject).where(
-            CharityProject.name == project_name
-        )
-    )
-    return project.scalars().first()
