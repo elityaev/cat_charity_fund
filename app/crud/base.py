@@ -1,10 +1,11 @@
-from typing import Optional
+from typing import Optional, List, Union
 
 from fastapi.encoders import jsonable_encoder
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import User
+from app.models import User, CharityProject, Donation
+from app.constants import INV_DICT
 
 
 class CRUDBase:
@@ -16,7 +17,7 @@ class CRUDBase:
             self,
             obj_id: int,
             session: AsyncSession
-    ):
+    ) -> Union[CharityProject, Donation]:
         """Получение объекта по id."""
         db_obj = await session.execute(
             select(self.model).where(
@@ -28,7 +29,7 @@ class CRUDBase:
     async def get_multi(
             self,
             session: AsyncSession
-    ):
+    ) -> Union[List[CharityProject], List[Donation]]:
         """Получение списка объектов."""
         db_objs = await session.execute(select(self.model))
         return db_objs.scalars().all()
@@ -38,7 +39,7 @@ class CRUDBase:
             obj_in,
             session: AsyncSession,
             user: Optional[User] = None
-    ):
+    ) -> Union[CharityProject, Donation]:
         """Создание объекта."""
         obj_in_data = obj_in.dict()
         if user is not None:
@@ -54,7 +55,7 @@ class CRUDBase:
             db_obj,
             obj_in,
             session: AsyncSession
-    ):
+    ) -> Union[CharityProject, Donation]:
         """Обновление объекта."""
         obj_data = jsonable_encoder(db_obj)
         update_data = obj_in.dict(exclude_unset=True)
@@ -70,8 +71,21 @@ class CRUDBase:
             self,
             db_obj,
             session: AsyncSession
-    ):
+    ) -> Union[CharityProject, Donation]:
         """Удаление объекта."""
         await session.delete(db_obj)
         await session.commit()
         return db_obj
+
+    @staticmethod
+    async def get_not_closed_obj(
+            obj: Union[CharityProject, Donation],
+            session: AsyncSession
+    ) -> Union[CharityProject, Donation]:
+        """Получает объект проект/пожертвование с неполным инвестированием."""
+        not_closed_obj = await session.execute(
+            select(INV_DICT[obj.__class__]).where(
+                INV_DICT[obj.__class__].fully_invested == 0
+            )
+        )
+        return not_closed_obj.scalars().first()

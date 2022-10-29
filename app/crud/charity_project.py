@@ -2,16 +2,16 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.crud.base import CRUDBase
-from app.models.charity_project import CharityProject
+from app.models import CharityProject
 
 
 class CRUDCharityProject(CRUDBase):
 
+    @staticmethod
     async def get_project_by_name(
-            self,
             project_name: str,
             session: AsyncSession,
-    ):
+    ) -> CharityProject:
         """Получение проекта по имени."""
         project = await session.execute(
             select(CharityProject).where(

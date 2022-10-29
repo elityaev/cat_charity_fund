@@ -1,48 +1,37 @@
 from datetime import datetime
 
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import CharityProject, Donation
+from app.crud.base import CRUDBase
 
 
-async def investing(session: AsyncSession):
+async def investing(created_obj, session: AsyncSession):
     """Инвестирование имеющихся пожертвований в незавершенные проекты."""
-    projects = await session.execute(
-        select(CharityProject).where(
-            CharityProject.fully_invested == 0
-        )
-    )
-    projects = projects.scalars().first()
-    donations = await session.execute(
-        select(Donation).where(
-            Donation.fully_invested == 0
-        )
-    )
-    donations = donations.scalars().first()
-    if projects and donations:
-        shortage_donation = projects.full_amount - projects.invested_amount
-        remaining_donations = donations.full_amount - donations.invested_amount
-        if shortage_donation > remaining_donations:
-            projects.invested_amount += remaining_donations
-            donations.invested_amount += remaining_donations
-            donations.fully_invested = True
-            donations.close_date = datetime.now()
-        elif shortage_donation == remaining_donations:
-            donations.invested_amount = remaining_donations
-            donations.fully_invested = True
-            donations.close_date = datetime.now()
-            projects.invested_amount = remaining_donations
-            projects.fully_invested = True
-            projects.close_date = datetime.now()
-        else:
-            donations.invested_amount = shortage_donation
-            projects.invested_amount = shortage_donation
-            projects.fully_invested = True
-            projects.close_date = datetime.now()
-        session.add(donations)
-        session.add(projects)
+    not_closed_obj = await CRUDBase.get_not_closed_obj(created_obj, session)
+    if not_closed_obj:
+        diff_exists = not_closed_obj.full_amount - not_closed_obj.invested_amount
+        diff_created = created_obj.full_amount - created_obj.invested_amount
+        if diff_created > diff_exists:
+            created_obj.invested_amount += diff_exists
+            not_closed_obj.invested_amount += diff_exists
+        elif diff_created < diff_exists:
+            created_obj.invested_amount += diff_created
+            not_closed_obj.invested_amount += diff_created
+        elif diff_created == diff_exists:
+            not_closed_obj.invested_amount += diff_exists
+            created_obj.invested_amount = diff_exists
+        if created_obj.invested_amount == created_obj.full_amount:
+            created_obj.fully_invested = True
+            created_obj.close_date = datetime.now()
+        if not_closed_obj.invested_amount == not_closed_obj.full_amount:
+            not_closed_obj.fully_invested = True
+            not_closed_obj.close_date = datetime.now()
+        session.add(created_obj)
+        session.add(not_closed_obj)
         await session.commit()
-        await session.refresh(donations)
-        await session.refresh(projects)
-        return await investing(session)
+        await session.refresh(created_obj)
+        await session.refresh(not_closed_obj)
+        if created_obj.fully_invested:
+            return await investing(not_closed_obj, session)
+        if not_closed_obj.fully_invested:
+            return await investing(created_obj, session)

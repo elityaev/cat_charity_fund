@@ -1,9 +1,11 @@
 from http import HTTPStatus
+from typing import Union
 
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.crud.charity_project import project_crud
+from app.models import Donation
 from app.models.charity_project import CharityProject
 
 
@@ -37,9 +39,9 @@ async def check_project_exists(
 
 
 def check_amount_invested(
-        obj,
-        new_amount=None
-):
+        obj: Union[CharityProject, Donation],
+        new_amount: int = None
+) -> Union[CharityProject, Donation]:
     """Проверка условий редактирования и удаления проекта."""
     invested = obj.invested_amount
     if new_amount:
@@ -56,7 +58,9 @@ def check_amount_invested(
     return obj
 
 
-def check_fully_invested(obj):
+def check_fully_invested(
+        obj: Union[CharityProject, Donation]
+) -> Union[CharityProject, Donation]:
     """Проверка - закрыт ли проект."""
     if obj.fully_invested:
         raise HTTPException(
