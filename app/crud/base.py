@@ -78,14 +78,14 @@ class CRUDBase:
         return db_obj
 
     @staticmethod
-    async def get_not_closed_obj(
+    async def get_not_closed_objs(
             obj: Union[CharityProject, Donation],
             session: AsyncSession
-    ) -> Union[CharityProject, Donation]:
+    ) -> List[Union[CharityProject, Donation]]:
         """Получает объект проект/пожертвование с неполным инвестированием."""
-        not_closed_obj = await session.execute(
+        not_closed_objs = await session.execute(
             select(INV_DICT[obj.__class__]).where(
                 INV_DICT[obj.__class__].fully_invested == 0
             )
         )
-        return not_closed_obj.scalars().first()
+        return not_closed_objs.scalars().all()
